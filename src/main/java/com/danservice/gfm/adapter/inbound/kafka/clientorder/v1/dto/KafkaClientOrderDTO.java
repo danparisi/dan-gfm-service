@@ -1,4 +1,4 @@
-package com.danservice.gfm.adapter.inbound.kafka.v1.dto;
+package com.danservice.gfm.adapter.inbound.kafka.clientorder.v1.dto;
 
 import com.danservice.gfm.domain.OrderType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

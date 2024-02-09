@@ -1,21 +1,33 @@
 spring:
   application:
     name: dan-gfm-service
+  datasource:
+    url: jdbc:mariadb://mariadb:3306/dan_gfm
+    username: root
+    password: LNqRhw5m1w
+  jpa:
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MariaDBDialect
   kafka:
     consumer:
       group-id: ${spring.application.name}
       properties:
         spring.json.trusted.packages: com.danservice.*
-      # auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
     producer:
       retries: 3
       acks: all
+      transaction-id-prefix: tx-
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 dan:
   topic:
-    street-order: dan-street-orders
     client-order: dan-client-orders
+    street-order: dan-street-orders
+    street-order-ack: dan-street-order-acks
