@@ -19,6 +19,6 @@ public class KafkaProducer {
         String key = orderDTO.getId().toString();
 
         kafkaTemplate.send(streetOrderTopic, key, orderDTO);
-        log.info("Producing street order: Key=[{}], value=[{}]", key, orderDTO);
+        log.info("Produced street order: Key=[{}], value=[{}]", key, orderDTO);
     }
 }

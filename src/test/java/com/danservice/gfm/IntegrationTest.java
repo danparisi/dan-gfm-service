@@ -4,6 +4,7 @@ import com.danservice.gfm.adapter.inbound.kafka.clientorder.v1.dto.KafkaClientOr
 import com.danservice.gfm.adapter.inbound.kafka.streetorderack.v1.dto.KafkaStreetOrderAckDTO;
 import com.danservice.gfm.adapter.outbound.kafka.streetorder.v1.dto.KafkaStreetOrderDTO;
 import com.danservice.gfm.adapter.repository.OrderRepository;
+import com.danservice.gfm.domain.OrderStatus;
 import com.danservice.gfm.model.OrderEntity;
 import lombok.SneakyThrows;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -33,22 +34,19 @@ import static java.lang.String.format;
 import static java.math.RoundingMode.UP;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Comparator.comparing;
-import static java.util.UUID.*;
 import static java.util.UUID.randomUUID;
 import static org.apache.commons.collections4.IterableUtils.toList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.kafka.support.serializer.JsonDeserializer.TRUSTED_PACKAGES;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.consumerProps;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getRecords;
 
 @EmbeddedKafka(
-        partitions = 1,
+        partitions = 3,
         brokerProperties = {
                 "transaction.state.log.min.isr=1",
                 "offsets.topic.replication.factor=1",
@@ -64,6 +62,8 @@ class IntegrationTest {
     private String streetOrderAcksTopic;
     @Value("${dan.topic.client-order}")
     private String clientOrdersTopic;
+    @Value("${dan.topic.street-order-execution}")
+    private String streetOrderExecutionsTopic;
     @Autowired
     private OrderRepository orderRepository;
     @Autowired
@@ -73,19 +73,28 @@ class IntegrationTest {
 
     @Test
     @SneakyThrows
-    void shouldHandleClientOrder() {
+    void shouldHandleWholeFlow() {
         final KafkaClientOrderDTO clientOrderDTO = aKafkaClientOrderDTO();
         final UUID orderId = clientOrderDTO.getId();
         kafkaTemplate
                 .executeInTransaction(t -> t.send(clientOrdersTopic, orderId.toString(), clientOrderDTO)).get();
 
+        // 1. Expecting new client order
         verifyOrderEntityCreated(clientOrderDTO);
         verifyKafkaStreetOrderProduced(clientOrderDTO);
 
         final KafkaStreetOrderAckDTO kafkaStreetOrderAckDTO = aKafkaStreetOrderAckDTO(orderId);
         kafkaTemplate
                 .executeInTransaction(t -> t.send(streetOrderAcksTopic, orderId.toString(), kafkaStreetOrderAckDTO)).get();
-        verifyOrderEntityUpdated(kafkaStreetOrderAckDTO);
+
+        // 2. Expecting street order ack
+        verifyOrderEntityUpdatedToStatus(orderId, RECEIVED_BY_FM, 3);
+
+        kafkaTemplate
+                .executeInTransaction(t -> t.send(streetOrderExecutionsTopic, orderId.toString(), orderId)).get();
+
+        // 3. Expecting order execution
+        verifyOrderEntityUpdatedToStatus(orderId, EXECUTED, 4);
     }
 
     private static KafkaStreetOrderAckDTO aKafkaStreetOrderAckDTO(UUID orderId) {
@@ -102,16 +111,15 @@ class IntegrationTest {
     }
 
 
-    private void verifyOrderEntityUpdated(KafkaStreetOrderAckDTO kafkaStreetOrderAckDTO) {
-        final var orderId = kafkaStreetOrderAckDTO.getId();
+    private void verifyOrderEntityUpdatedToStatus(UUID orderId, OrderStatus status, int statusUpdates) {
         final var orderEntity = await()
                 .atMost(Duration.of(5, SECONDS))
-                .until(() -> findMandatoryOrder(orderId), order -> order.getCurrentStatus() == RECEIVED_BY_FM);
+                .until(() -> findMandatoryOrder(orderId), order -> order.getCurrentStatus() == status);
 
-        assertEquals(RECEIVED_BY_FM, orderEntity.getCurrentStatus());
-        assertEquals(3, orderEntity.getStatusUpdates().size());
-        assertNotNull(orderEntity.getStatusUpdates().get(2).getCreatedDate());
-        assertEquals(RECEIVED_BY_FM, orderEntity.getStatusUpdates().get(2).getStatus());
+        assertEquals(status, orderEntity.getCurrentStatus());
+        assertEquals(statusUpdates, orderEntity.getStatusUpdates().size());
+        assertNotNull(orderEntity.getStatusUpdates().get(statusUpdates - 1).getCreatedDate());
+        assertEquals(status, orderEntity.getStatusUpdates().get(statusUpdates - 1).getStatus());
         assertTrue(orderEntity.getLastModifiedDate().isAfter(orderEntity.getCreatedDate()));
     }
 

@@ -31,3 +31,4 @@ dan:
     client-order: dan-client-orders
     street-order: dan-street-orders
     street-order-ack: dan-street-order-acks
+    street-order-execution: dan-street-order-executions

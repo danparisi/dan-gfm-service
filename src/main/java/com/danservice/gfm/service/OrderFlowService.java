@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Random;
+import java.util.UUID;
 
 import static com.danservice.gfm.domain.OrderStatus.*;
 import static java.lang.Thread.sleep;
@@ -28,6 +29,8 @@ public class OrderFlowService {
 
     @SneakyThrows
     public void handleClientOrder(KafkaClientOrderDTO clientOrderDTO) {
+        log.info("Handling client order [{}]:", clientOrderDTO);
+
         var orderId = orderService
                 .save(clientOrderDTO, RECEIVED).getId();
 
@@ -41,9 +44,18 @@ public class OrderFlowService {
     }
 
     public void handleStreetOrderAck(KafkaStreetOrderAckDTO streetOrderAckDTO) {
+        log.info("Handling street order ack [{}]:", streetOrderAckDTO);
+
         var orderId = streetOrderAckDTO.getId();
 
         orderService
                 .updateStatus(orderId, RECEIVED_BY_FM);
+    }
+
+    public void handleOrderExecution(UUID orderId) {
+        log.info("Handling order execution: [{}]", orderId);
+
+        orderService
+                .updateStatus(orderId, EXECUTED);
     }
 }
