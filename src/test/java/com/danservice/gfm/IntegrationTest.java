@@ -14,6 +14,7 @@ import org.jeasy.random.EasyRandom;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -42,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.kafka.support.serializer.JsonDeserializer.TRUSTED_PACKAGES;
+import static org.springframework.kafka.support.serializer.JsonDeserializer.TYPE_MAPPINGS;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.consumerProps;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.getRecords;
 
@@ -66,6 +68,8 @@ class IntegrationTest {
     private String streetOrderExecutionsTopic;
     @Autowired
     private OrderRepository orderRepository;
+    @Autowired
+    private KafkaProperties kafkaProperties;
     @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
     @Autowired
@@ -162,10 +166,12 @@ class IntegrationTest {
 
     private List<ConsumerRecord<String, KafkaStreetOrderDTO>> consumeFromKafkaStreetOrderTopic() {
         Map<String, Object> consumerProps = consumerProps("test-group", "true", embeddedKafkaBroker);
-        consumerProps.put(TRUSTED_PACKAGES, "com.danservice.*");
+        consumerProps.put(TRUSTED_PACKAGES, "*");
         consumerProps.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerProps.put(KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerProps.put(VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        consumerProps.put(TYPE_MAPPINGS, kafkaProperties.getProducer().getProperties().get(TYPE_MAPPINGS));
+
         ConsumerFactory<String, KafkaStreetOrderDTO> cf = new DefaultKafkaConsumerFactory<>(consumerProps);
         Consumer<String, KafkaStreetOrderDTO> consumer = cf.createConsumer();
 

@@ -24,7 +24,7 @@
         <dependency>
             <groupId>com.danservice</groupId>
             <artifactId>dan-service-tech-starter</artifactId>
-            <version>0.0.16</version>
+            <version>0.0.23</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
