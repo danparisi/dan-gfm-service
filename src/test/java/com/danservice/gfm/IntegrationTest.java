@@ -1,5 +1,6 @@
 package com.danservice.gfm;
 
+import com.danservice.gfm.adapter.inbound.api.order.v1.dto.GetOrderStatusResponseDTO;
 import com.danservice.gfm.adapter.inbound.kafka.clientorder.v1.dto.KafkaClientOrderDTO;
 import com.danservice.gfm.adapter.inbound.kafka.streetorderack.v1.dto.KafkaStreetOrderAckDTO;
 import com.danservice.gfm.adapter.outbound.kafka.streetorder.v1.dto.KafkaStreetOrderDTO;
@@ -16,6 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.danservice.gfm.adapter.inbound.api.order.v1.OrdersController.BASE_ENDPOINT_ORDERS;
 import static com.danservice.gfm.domain.OrderStatus.*;
 import static com.danservice.gfm.domain.OrderType.LIMIT;
 import static java.lang.String.format;
@@ -42,6 +46,8 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
+import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.kafka.support.serializer.JsonDeserializer.TRUSTED_PACKAGES;
 import static org.springframework.kafka.support.serializer.JsonDeserializer.TYPE_MAPPINGS;
 import static org.springframework.kafka.test.utils.KafkaTestUtils.consumerProps;
@@ -54,9 +60,10 @@ import static org.springframework.kafka.test.utils.KafkaTestUtils.getRecords;
                 "offsets.topic.replication.factor=1",
                 "transaction.state.log.replication.factor=1"},
         topics = {"${dan.topic.client-order}", "${dan.topic.street-order}", "${dan.topic.street-order-ack}"})
-@SpringBootTest(classes = Application.class)
+@SpringBootTest(classes = Application.class, webEnvironment = RANDOM_PORT)
 class IntegrationTest {
     private static final EasyRandom EASY_RANDOM = new EasyRandom();
+    private static final String ENDPOINT_ORDER_STATUS_ORDER_ID = BASE_ENDPOINT_ORDERS + "/{orderId}/status";
 
     @Value("${dan.topic.street-order}")
     private String streetOrdersTopic;
@@ -70,6 +77,8 @@ class IntegrationTest {
     private OrderRepository orderRepository;
     @Autowired
     private KafkaProperties kafkaProperties;
+    @Autowired
+    private TestRestTemplate testRestTemplate;
     @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
     @Autowired
@@ -125,6 +134,14 @@ class IntegrationTest {
         assertNotNull(orderEntity.getStatusUpdates().get(statusUpdates - 1).getCreatedDate());
         assertEquals(status, orderEntity.getStatusUpdates().get(statusUpdates - 1).getStatus());
         assertTrue(orderEntity.getLastModifiedDate().isAfter(orderEntity.getCreatedDate()));
+
+        ResponseEntity<GetOrderStatusResponseDTO> response = testRestTemplate
+                .getForEntity(ENDPOINT_ORDER_STATUS_ORDER_ID, GetOrderStatusResponseDTO.class, orderId);
+
+        GetOrderStatusResponseDTO actual = response.getBody();
+        assertNotNull(actual);
+        assertEquals(OK, response.getStatusCode());
+        assertEquals(actual.getCurrentStatus(), status);
     }
 
     private void verifyOrderEntityCreated(KafkaClientOrderDTO clientOrderDTO) {

@@ -40,6 +40,11 @@ public class OrderService {
                 .updateStatus(newStatus);
     }
 
+    public OrderStatus getOrderCurrentStatus(UUID orderId) {
+        return findMandatory(orderId)
+                .getCurrentStatus();
+    }
+
     private OrderEntity findMandatory(UUID orderId) {
         return orderRepository
                 .findById(orderId)
