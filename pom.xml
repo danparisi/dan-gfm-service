@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.danservice</groupId>
         <artifactId>dan-service-starter-parent</artifactId>
-        <version>0.0.23</version>
+        <version>0.0.52</version>
     </parent>
 
     <artifactId>gfm</artifactId>
@@ -14,7 +14,7 @@
 
     <properties>
         <helm.chart.enabled>true</helm.chart.enabled>
-        <docker.image.enabled>true</docker.image.enabled>
+        <native.image.enabled>true</native.image.enabled>
 
         <awaitility.version>4.2.0</awaitility.version>
         <easy-random.version>5.0.0</easy-random.version>
@@ -24,7 +24,7 @@
         <dependency>
             <groupId>com.danservice</groupId>
             <artifactId>dan-service-tech-starter</artifactId>
-            <version>0.0.26</version>
+            <version>0.0.83</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

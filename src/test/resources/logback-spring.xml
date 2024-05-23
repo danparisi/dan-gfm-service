@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--    Overriding logback-spring.xml in main/resources to avoid slowness during service startup
+        due to embedded kafka not reachable from asynchronous-kafka-appender.
+        Why? Probably embedded kafka injects its service url inside spring.kafka.bootstrap-servers
+        after the logging engine is initialized, therefore the kafka appender cannot connect. -->
+
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.out</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>
